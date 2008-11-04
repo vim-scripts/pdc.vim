@@ -2,10 +2,19 @@
 " Language:	Pandoc (superset of Markdown)
 " Maintainer:	Jeremy Schultz <taozhyn@gmail.com> 
 " URL:		
-" Version:	1
-" Last Change:	2008-09-29
+" Version:	2
+" Changes:	2008-11-04	
+"		-   Fixed an issue with Block elements (header) not being highlighted when 
+"		    placed on the first or second line of the file
+"		-   Fixed multi line HTML comment block
+"		-   Fixed lowercase list items
+"		-   Fixed list items gobbling to many empty lines
+"		-   Added highlight support to identify newline (2 spaces)
+"		-   Fixed HTML highlight, ignore if the first character in the
+"		    angle brackets is not a letter 
+"		-   Fixed Emphasis highlighting when it contained multiple
+"		    spaces
 " Remark:	Uses HTML and TeX syntax file
-
 
 if version < 600
   syntax clear
@@ -20,7 +29,11 @@ syn sync linebreaks=1
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Set embedded HTML highlighting
 syn include @HTML syntax/html.vim
-syn match pdcHTML	/<[^>]\+>/	contains=@HTML
+syn match pdcHTML	/<\a[^>]\+>/	contains=@HTML
+
+" Support HTML multi line comments
+syn region pdcHTMLComment   start=/<!--/ end=/-->/
+
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 " Set embedded LaTex (pandox extension) highlighting
@@ -35,7 +48,7 @@ syn match pdcLatex	/\\\w\+{[^}]\+}/	contains=@LATEX
 syn region pdcLatex start=/\\begin{[^}]\+}\ze/ end=/\ze\\end{[^}]\+}/ contains=@LATEX 
 
 "   Math Tex
-syn match pdcLatex	/$.\+$/	   contains=@LATEX
+syn match pdcLatex	/$[^$]\+\$/	   contains=@LATEX
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -43,7 +56,12 @@ syn match pdcLatex	/$.\+$/	   contains=@LATEX
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
 " Needed by other elements 
-syn match pdcBlankLine   /^\s*\n/    nextgroup=pdcHeader,pdcCodeBlock,pdcListItem,pdcListItem1,pdcHRule,pdcTableHeader,pdcTableMultiStart,pdcBlockquote transparent
+syn match pdcBlankLine   /\(^\s*\n\|\%^\)/    nextgroup=pdcHeader,pdcCodeBlock,pdcListItem,pdcListItem1,pdcHRule,pdcTableHeader,pdcTableMultiStart,pdcBlockquote transparent
+
+
+"""""""""""""""""""""""""""""""""""""""
+" Title Block:
+syn match pandocTitleBlock /\%^\(%.*\n\)\{1,3}$/ 
 
 
 """""""""""""""""""""""""""""""""""""""
@@ -88,7 +106,7 @@ syn match pdcCodeEndCode  /\s*<\/code>/ contained transparent
 "   incorrect
 
 "   Continue a list on the next line
-syn match pdcListCont /\s*[^-+*].*/ contained nextgroup=pdcListCont,pdcListItem,pdcListSkipNL skipnl transparent
+syn match pdcListCont /\s*[^-+*].*\n/ contained nextgroup=pdcListCont,pdcListItem,pdcListSkipNL transparent
 
 "   Skip empty lines
 syn match pdcListSkipNL /\s*\n/ contained nextgroup=pdcListItem,pdcListSkipNL 
@@ -103,7 +121,7 @@ syn match  pdcListItem  /\s*(\?\(\d\+\|#\)[\.)]\s\+/ contained nextgroup=pdcList
 syn match  pdcListItem  /\s*(\?[ivxlcdm]\+[\.)]\s\+/ contained nextgroup=pdcListSkipNL,pdcListCont skipnl
 
 "   Order list, lowercase letters
-syn match  pdcListItem  /\s*(\?\U[\.)]\s\+/ contained nextgroup=pdcListSkipNL,pdcListCont skipnl
+syn match  pdcListItem  /\s*(\?\l[\.)]\s\+/ contained nextgroup=pdcListSkipNL,pdcListCont skipnl
 
 "   Order list, uppercase letters, does not include '.' 
 syn match  pdcListItem  /\s*(\?\u[\)]\s\+/ contained nextgroup=pdcListSkipNL,pdcListCont skipnl
@@ -164,10 +182,10 @@ syn match pdcLinkTitle /\s*[("'].*[)"']/ contained contains=@Spell
 " Emphasis:
 
 "   Using underscores
-syn match pdcEmphasis   /\(_\|__\)\([^_ ]\|[^_] [^_]\)\+\1/    contains=@Spell
+syn match pdcEmphasis   / \(_\|__\)\([^_ ]\|[^_]\( [^_]\)\+\)\+\1/    contains=@Spell
 
 "   Using Asterisks
-syn match pdcEmphasis   /\(\*\|\*\*\)\([^\* ]\|[^\*] [^\*]\)\+\1/    contains=@Spell
+syn match pdcEmphasis   / \(\*\|\*\*\)\([^\* ]\|[^\*]\( [^\*]\)\+\)\+\1/    contains=@Spell
 
 
 """""""""""""""""""""""""""""""""""""""
@@ -245,15 +263,12 @@ syn match pdcTableMultiCaption /\n*\s*Table.*\n/ contained nextgroup=pdcTableCap
 
 """""""""""""""""""""""""""""""""""""""
 " Delimited Code Block: (added in 1.0)
-"   I do not have this compiled into my version, yet
 syn region pdcCodeBlock matchgroup=pdcCodeStart start=/^\z(\~\{3,}\) \( {[^}]\+}\)\?/ matchgroup=pdcCodeEnd end=/^\z1\~*/ 
 
 
-
 """""""""""""""""""""""""""""""""""""""
-" Title Block:
-syn match pandocTitleBlock /\%^\(%.*\n\)\{0,3}$/ 
-
+" Newline, 2 spaces at the end of line means newline
+syn match pdcNewLine /  $/
 
 
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -262,6 +277,8 @@ syn match pandocTitleBlock /\%^\(%.*\n\)\{0,3}$/
 hi link pdcHeader		Title
 hi link pdcBlockquote	    	Comment
 hi link pdcBlockquote2	    	Comment
+
+hi link pdcHTMLComment		Comment
 
 hi link pdcHRule		Underlined
 "hi link pdcHRule		Special
@@ -302,6 +319,8 @@ hi link pdcTableCaption		Label
 hi link pdcTableMultiCaption	Label
 hi link pdcTableCaptionCont	Label
 
+hi link pdcNewLine		Error
+
 
 " For testing
 hi link pdctest		Error
@@ -309,4 +328,3 @@ hi link pdctest		Error
 
 let b:current_syntax = "pandoc"
 
-" vim: ts=8
